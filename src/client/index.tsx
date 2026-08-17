@@ -34,8 +34,8 @@ function ThemeSelector({
 				onChange={(e) => onChange(e.target.value as Theme)}
 				aria-label="Color theme"
 			>
-				<option value="light">Light</option>
-				<option value="dark">Dark</option>
+				<option value="light">Light ☀️</option>
+				<option value="dark">Dark 🌙</option>
 			</select>
 		</label>
 	);
@@ -121,7 +121,7 @@ function Chat({
 		if (!el) return;
 
 		const nearBottom =
-			el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+			el.scrollHeight - el.scrollTop - el.clientHeight < 150;
 		const initialLoad =
 			prevMessageCountRef.current === 0 && messages.length > 0;
 
