@@ -12,6 +12,58 @@ import { nanoid } from "nanoid";
 
 import { type ChatMessage, type Message } from "../shared";
 
+type Theme = "light" | "dark";
+
+function getStoredTheme(): Theme {
+	const stored = localStorage.getItem("theme");
+	return stored === "dark" ? "dark" : "light";
+}
+
+function ThemeSelector({
+	theme,
+	onChange,
+}: {
+	theme: Theme;
+	onChange: (theme: Theme) => void;
+}) {
+	return (
+		<label className="theme-selector">
+			<span className="theme-selector-label">Theme</span>
+			<select
+				value={theme}
+				onChange={(e) => onChange(e.target.value as Theme)}
+				aria-label="Color theme"
+			>
+				<option value="light">Light</option>
+				<option value="dark">Dark</option>
+			</select>
+		</label>
+	);
+}
+
+function Layout({ children }: { children: React.ReactNode }) {
+	const [theme, setTheme] = useState<Theme>(getStoredTheme);
+
+	useLayoutEffect(() => {
+		document.documentElement.setAttribute("data-theme", theme);
+		localStorage.setItem("theme", theme);
+	}, [theme]);
+
+	return (
+		<div className="page container">
+			<div className="row page-row">
+				<aside className="one-third column sidebar">
+					<h4>
+						<b>HPANWO</b>
+					</h4>
+					<ThemeSelector theme={theme} onChange={setTheme} />
+				</aside>
+				<main className="two-thirds column main">{children}</main>
+			</div>
+		</div>
+	);
+}
+
 function App() {
 	const [username, setUsername] = useState<string | null>(null);
 	const { room } = useParams();
@@ -187,10 +239,12 @@ function Chat({
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 createRoot(document.getElementById("root")!).render(
 	<BrowserRouter>
-		<Routes>
-			<Route path="/" element={<Navigate to={`/${nanoid()}`} />} />
-			<Route path="/:room" element={<App />} />
-			<Route path="*" element={<Navigate to="/" />} />
-		</Routes>
+		<Layout>
+			<Routes>
+				<Route path="/" element={<Navigate to={`/${nanoid()}`} />} />
+				<Route path="/:room" element={<App />} />
+				<Route path="*" element={<Navigate to="/" />} />
+			</Routes>
+		</Layout>
 	</BrowserRouter>,
 );

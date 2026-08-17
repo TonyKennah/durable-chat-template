@@ -24,21 +24,15 @@
 		<!-- Favicon
   –––––––––––––––––––––––––––––––––––––––––––––––––– -->
 		<link rel="icon" type="image/ico" href="favicon.ico" />
+		<script>
+			(function () {
+				const theme = localStorage.getItem("theme") || "light";
+				document.documentElement.setAttribute("data-theme", theme);
+			})();
+		</script>
 		<script src="/dist/index.js" type="module"></script>
 	</head>
 	<body>
-		<!-- Primary Page Layout
-  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
-		<div class="container" style="width: 95%; height: 100%">
-			<div class="row" style="height: 100%">
-				<div class="one-third column" style="margin-top: 25%">
-					<h4><b>HPANWO</b></h4>
-				</div>
-				<div class="two-thirds column" id="root"></div>
-			</div>
-		</div>
-
-		<!-- End Document
-  –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+		<div id="root"></div>
 	</body>
 </html>

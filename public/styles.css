@@ -1,3 +1,26 @@
+:root,
+[data-theme="light"] {
+	--bg: #fff;
+	--text: #222;
+	--text-muted: #555;
+	--border: #bbb;
+	--input-bg: #fff;
+	--input-border: #d1d1d1;
+	--placeholder: #ccc;
+	--select-bg: #fff;
+}
+
+[data-theme="dark"] {
+	--bg: #1a1a1a;
+	--text: #e8e8e8;
+	--text-muted: #aaa;
+	--border: #444;
+	--input-bg: #2a2a2a;
+	--input-border: #555;
+	--placeholder: #666;
+	--select-bg: #2a2a2a;
+}
+
 body,
 html {
 	height: 100%;
@@ -5,6 +28,48 @@ html {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
+	background-color: var(--bg);
+	color: var(--text);
+}
+
+.page {
+	width: 95%;
+	height: 100%;
+}
+
+.page-row {
+	height: 100%;
+}
+
+.sidebar {
+	margin-top: 25%;
+}
+
+.theme-selector {
+	display: block;
+	margin-top: 1rem;
+}
+
+.theme-selector-label {
+	display: block;
+	margin-bottom: 0.5rem;
+	font-size: 1.4rem;
+	color: var(--text-muted);
+}
+
+.theme-selector select {
+	width: 100%;
+	margin-bottom: 0;
+	background-color: var(--select-bg);
+	color: var(--text);
+	border-color: var(--input-border);
+}
+
+.main {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	height: 100%;
 }
 
 #root {
@@ -44,7 +109,6 @@ html {
 	width: 22px;
 	height: 20px;
 	left: -60px;
-	/* display: "block", */
 	display: none;
 	padding: 0;
 	line-height: 18px;
@@ -55,6 +119,30 @@ html {
 	padding: 0;
 }
 
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+	background-color: var(--input-bg);
+	color: var(--text);
+	border-color: var(--input-border);
+}
+
+button,
+.button {
+	color: var(--text);
+	border-color: var(--border);
+}
+
+button:hover,
+.button:hover,
+button:focus,
+.button:focus {
+	color: var(--text);
+	border-color: var(--text-muted);
+}
+
 .my-input-text::placeholder {
-	color: #ccc;
+	color: var(--placeholder);
 }
