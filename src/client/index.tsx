@@ -10,12 +10,57 @@ import {
 } from "react-router";
 import { nanoid } from "nanoid";
 
-import { names, type ChatMessage, type Message } from "../shared";
+import { type ChatMessage, type Message } from "../shared";
 
 function App() {
-	const [name] = useState(names[Math.floor(Math.random() * names.length)]);
-	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const [username, setUsername] = useState<string | null>(null);
 	const { room } = useParams();
+
+	if (!username) {
+		return (
+			<div className="chat container">
+				<form
+					className="row username-form"
+					onSubmit={(e) => {
+						e.preventDefault();
+						const input = e.currentTarget.elements.namedItem(
+							"username",
+						) as HTMLInputElement;
+						const value = input.value.trim();
+						if (value) {
+							setUsername(value);
+						}
+					}}
+				>
+					<h4 className="twelve columns">Join the chat</h4>
+					<input
+						type="text"
+						name="username"
+						className="ten columns my-input-text"
+						placeholder="Enter your name..."
+						autoComplete="off"
+						autoFocus
+						maxLength={32}
+					/>
+					<button type="submit" className="two columns send-message">
+						Join
+					</button>
+				</form>
+			</div>
+		);
+	}
+
+	return <Chat room={room} username={username} />;
+}
+
+function Chat({
+	room,
+	username,
+}: {
+	room: string | undefined;
+	username: string;
+}) {
+	const [messages, setMessages] = useState<ChatMessage[]>([]);
 
 	const socket = usePartySocket({
 		party: "chat",
@@ -88,7 +133,7 @@ function App() {
 					const chatMessage: ChatMessage = {
 						id: nanoid(8),
 						content: content.value,
-						user: name,
+						user: username,
 						role: "user",
 					};
 					setMessages((messages) => [...messages, chatMessage]);
@@ -108,7 +153,7 @@ function App() {
 					type="text"
 					name="content"
 					className="ten columns my-input-text"
-					placeholder={`Hello ${name}! Type a message...`}
+					placeholder={`Hello ${username}! Type a message...`}
 					autoComplete="off"
 				/>
 				<button type="submit" className="send-message two columns">
