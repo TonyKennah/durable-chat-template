@@ -7,18 +7,27 @@ html {
 	flex-direction: column;
 }
 
-.chat {
-	padding-top: 40px;
-}
-
 #root {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
-	justify-content: flex-end;
-	overflow-y: auto;
+	min-height: 0;
 	height: 100%;
-	/* padding: 10px; */
+}
+
+.chat {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	padding-top: 40px;
+}
+
+.messages {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	padding-bottom: 10px;
 }
 
 .message {

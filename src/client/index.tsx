@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { usePartySocket } from "partysocket/react";
-import React, { useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import {
 	BrowserRouter,
 	Routes,
@@ -61,6 +61,24 @@ function Chat({
 	username: string;
 }) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
+	const messagesRef = useRef<HTMLDivElement>(null);
+	const prevMessageCountRef = useRef(0);
+
+	useLayoutEffect(() => {
+		const el = messagesRef.current;
+		if (!el) return;
+
+		const nearBottom =
+			el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+		const initialLoad =
+			prevMessageCountRef.current === 0 && messages.length > 0;
+
+		if (nearBottom || initialLoad) {
+			el.scrollTop = el.scrollHeight;
+		}
+
+		prevMessageCountRef.current = messages.length;
+	}, [messages]);
 
 	const socket = usePartySocket({
 		party: "chat",
@@ -117,12 +135,14 @@ function Chat({
 
 	return (
 		<div className="chat container">
-			{messages.map((message) => (
-				<div key={message.id} className="row message">
-					<div className="two columns user">{message.user}</div>
-					<div className="ten columns">{message.content}</div>
-				</div>
-			))}
+			<div className="messages" ref={messagesRef}>
+				{messages.map((message) => (
+					<div key={message.id} className="row message">
+						<div className="two columns user">{message.user}</div>
+						<div className="ten columns">{message.content}</div>
+					</div>
+				))}
+			</div>
 			<form
 				className="row"
 				onSubmit={(e) => {
