@@ -28,7 +28,6 @@ function ThemeSelector({
 }) {
 	return (
 		<label className="theme-selector">
-			<span className="theme-selector-label">Theme</span>
 			<select
 				value={theme}
 				onChange={(e) => onChange(e.target.value as Theme)}
@@ -171,11 +170,11 @@ function Chat({
 					messages.map((m) =>
 						m.id === message.id
 							? {
-									id: message.id,
-									content: message.content,
-									user: message.user,
-									role: message.role,
-								}
+								id: message.id,
+								content: message.content,
+								user: message.user,
+								role: message.role,
+							}
 							: m,
 					),
 				);
