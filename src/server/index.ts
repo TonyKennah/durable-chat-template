@@ -62,6 +62,13 @@ export class Chat extends Server<Env> {
 	onClose(connection: Connection) {
 		this.connectionUsers.delete(connection.id);
 		this.connectionMessageTimes.delete(connection.id);
+
+		// If the room is now empty, wipe all messages so the next session starts fresh
+		if (this.ctx.getWebSockets().length === 0) {
+			this.messages = [];
+			this.ctx.storage.sql.exec(`DELETE FROM messages`);
+		}
+
 		this.broadcastUsers();
 	}
 
