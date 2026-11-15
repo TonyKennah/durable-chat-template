@@ -12,6 +12,14 @@ export class Chat extends Server<Env> {
 
 	messages = [] as ChatMessage[];
 
+	// Rate limiting: track recent message timestamps per connection
+	// If a connection sends more than RATE_LIMIT_MAX messages within RATE_LIMIT_WINDOW_MS,
+	// they are put on slow mode for SLOW_MODE_DURATION_MS.
+	private connectionMessageTimes = new Map<string, number[]>();
+	private static readonly RATE_LIMIT_MAX = 5;           // max messages...
+	private static readonly RATE_LIMIT_WINDOW_MS = 10000; // ...within 10 seconds
+	private static readonly SLOW_MODE_DURATION_MS = 30000; // 30 second cooldown
+
 	broadcastMessage(message: Message, exclude?: string[]) {
 		this.broadcast(JSON.stringify(message), exclude);
 	}
@@ -67,6 +75,35 @@ export class Chat extends Server<Env> {
 	}
 
 	onMessage(connection: Connection, message: WSMessage) {
+		const now = Date.now();
+		const id = connection.id;
+
+		// Rate limiting check
+		const times = this.connectionMessageTimes.get(id) ?? [];
+		const recent = times.filter((t) => now - t < Chat.RATE_LIMIT_WINDOW_MS);
+		recent.push(now);
+		this.connectionMessageTimes.set(id, recent);
+
+		if (recent.length > Chat.RATE_LIMIT_MAX) {
+			connection.send(
+				JSON.stringify({
+					type: "slow_mode",
+					retryAfterMs: Chat.SLOW_MODE_DURATION_MS,
+				} satisfies Message),
+			);
+			// Also let the room know
+			const parsed = JSON.parse(message as string) as Message;
+			const user = (parsed as { user?: string }).user ?? "Someone";
+			const secs = Chat.SLOW_MODE_DURATION_MS / 1000;
+			this.broadcast(
+				JSON.stringify({
+					type: "system",
+					content: `🐢 ${user} gets ${secs}s on the naughty step, for spamming!`,
+				} satisfies Message),
+			);
+			return; // drop the message — do not broadcast
+		}
+
 		// let's broadcast the raw message to everyone else
 		this.broadcast(message);
 

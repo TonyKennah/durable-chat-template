@@ -1,6 +1,6 @@
 import { createRoot } from "react-dom/client";
 import { usePartySocket } from "partysocket/react";
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState, useEffect } from "react";
 import {
 	BrowserRouter,
 	Routes,
@@ -40,7 +40,13 @@ function ThemeSelector({
 	);
 }
 
-function Layout({ children }: { children: React.ReactNode }) {
+function Layout({
+	children,
+	room,
+}: {
+	children: React.ReactNode;
+	room?: string;
+}) {
 	const [theme, setTheme] = useState<Theme>(getStoredTheme);
 
 	useLayoutEffect(() => {
@@ -53,7 +59,7 @@ function Layout({ children }: { children: React.ReactNode }) {
 			<div className="row page-row">
 				<aside className="one-third column sidebar">
 					<h4>
-						<b>HPANWO</b>
+						<b>{room ?? "Chat"}</b>
 					</h4>
 					<ThemeSelector theme={theme} onChange={setTheme} />
 				</aside>
@@ -114,6 +120,25 @@ function Chat({
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const messagesRef = useRef<HTMLDivElement>(null);
 	const prevMessageCountRef = useRef(0);
+	const [slowModeUntil, setSlowModeUntil] = useState<number | null>(null);
+	const [slowModeSecsLeft, setSlowModeSecsLeft] = useState(0);
+
+	// Countdown ticker for slow mode
+	useEffect(() => {
+		if (!slowModeUntil) return;
+		const tick = () => {
+			const remaining = Math.ceil((slowModeUntil - Date.now()) / 1000);
+			if (remaining <= 0) {
+				setSlowModeUntil(null);
+				setSlowModeSecsLeft(0);
+			} else {
+				setSlowModeSecsLeft(remaining);
+			}
+		};
+		tick();
+		const id = setInterval(tick, 1000);
+		return () => clearInterval(id);
+	}, [slowModeUntil]);
 
 	useLayoutEffect(() => {
 		const el = messagesRef.current;
@@ -136,7 +161,14 @@ function Chat({
 		room,
 		onMessage: (evt) => {
 			const message = JSON.parse(evt.data as string) as Message;
-			if (message.type === "add") {
+			if (message.type === "slow_mode") {
+				setSlowModeUntil(Date.now() + message.retryAfterMs);
+			} else if (message.type === "system") {
+				setMessages((msgs) => [
+					...msgs,
+					{ id: nanoid(8), content: message.content, user: "system", role: "assistant" },
+				]);
+			} else if (message.type === "add") {
 				const foundIndex = messages.findIndex((m) => m.id === message.id);
 				if (foundIndex === -1) {
 					// probably someone else who added a message
@@ -188,8 +220,8 @@ function Chat({
 		<div className="chat container">
 			<div className="messages" ref={messagesRef}>
 				{messages.map((message) => (
-					<div key={message.id} className="row message">
-						<div className="two columns user">{message.user}</div>
+					<div key={message.id} className={`row message ${message.user === "system" ? "system-message" : ""}`}>
+						<div className="two columns user">{message.user === "system" ? "" : message.user}</div>
 						<div className="ten columns">{message.content}</div>
 					</div>
 				))}
@@ -198,6 +230,7 @@ function Chat({
 				className="row"
 				onSubmit={(e) => {
 					e.preventDefault();
+					if (slowModeUntil) return;
 					const content = e.currentTarget.elements.namedItem(
 						"content",
 					) as HTMLInputElement;
@@ -208,7 +241,6 @@ function Chat({
 						role: "user",
 					};
 					setMessages((messages) => [...messages, chatMessage]);
-					// we could broadcast the message here
 
 					socket.send(
 						JSON.stringify({
@@ -218,32 +250,57 @@ function Chat({
 					);
 
 					content.value = "";
+					content.focus();
 				}}
 			>
 				<input
 					type="text"
 					name="content"
 					className="ten columns my-input-text"
-					placeholder={`Hello ${username}! Type a message...`}
+					placeholder={
+						slowModeUntil
+							? `⏳ Slow mode — wait ${slowModeSecsLeft}s...`
+							: `Hello ${username}! Type a message...`
+					}
 					autoComplete="off"
+					autoFocus
+					disabled={!!slowModeUntil}
 				/>
-				<button type="submit" className="send-message two columns">
-					Send
+				<button
+					type="submit"
+					className="send-message two columns"
+					disabled={!!slowModeUntil}
+				>
+					{slowModeUntil ? `${slowModeSecsLeft}s` : "Send"}
 				</button>
 			</form>
 		</div>
 	);
 }
 
+function RoomLayout() {
+	const { room } = useParams();
+	const upperRoom = room?.toUpperCase();
+
+	// Normalise room name to uppercase — /london and /LONDON are the same room
+	if (room !== upperRoom) {
+		return <Navigate to={`/${upperRoom}`} replace />;
+	}
+
+	return (
+		<Layout room={upperRoom}>
+			<App />
+		</Layout>
+	);
+}
+
 // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 createRoot(document.getElementById("root")!).render(
 	<BrowserRouter>
-		<Layout>
-			<Routes>
-				<Route path="/" element={<Navigate to={`/${nanoid()}`} />} />
-				<Route path="/:room" element={<App />} />
-				<Route path="*" element={<Navigate to="/" />} />
-			</Routes>
-		</Layout>
+		<Routes>
+			<Route path="/" element={<Navigate to={`/CHAT`} />} />
+			<Route path="/:room" element={<RoomLayout />} />
+			<Route path="*" element={<Navigate to="/" />} />
+		</Routes>
 	</BrowserRouter>,
 );

@@ -23,4 +23,20 @@ export type Message =
 	| {
 			type: "all";
 			messages: ChatMessage[];
+	  }
+	| {
+			// Sent privately to a connection that is spamming
+			type: "slow_mode";
+			retryAfterMs: number; // how long they must wait before sending again
+	  }
+	| {
+			// Broadcast to the room when someone is rate-limited
+			type: "system";
+			content: string;
+	  }
+	| {
+			// Relayed to other connections to show typing indicator
+			type: "typing";
+			user: string;
+			isTyping: boolean;
 	  };
