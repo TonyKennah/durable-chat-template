@@ -12,9 +12,6 @@ export class Chat extends Server<Env> {
 
 	messages = [] as ChatMessage[];
 
-	// connection ID → username for the user list
-	private connectionUsers = new Map<string, string>();
-
 	// Rate limiting: track recent message timestamps per connection
 	// If a connection sends more than RATE_LIMIT_MAX messages within RATE_LIMIT_WINDOW_MS,
 	// they are put on slow mode for SLOW_MODE_DURATION_MS.
@@ -27,9 +24,20 @@ export class Chat extends Server<Env> {
 		this.broadcast(JSON.stringify(message), exclude);
 	}
 
-	broadcastUsers() {
-		const users = [...this.connectionUsers.values()];
-		this.broadcastMessage({ type: "users", users });
+	private getOnlineUsers(excludeId?: string): string[] {
+		const users: string[] = [];
+		for (const conn of this.getConnections()) {
+			if (conn.id === excludeId) continue;
+			const state = conn.state as { user?: string } | null;
+			if (state?.user) {
+				users.push(state.user);
+			}
+		}
+		return users;
+	}
+
+	broadcastUsers(excludeId?: string) {
+		this.broadcastMessage({ type: "users", users: this.getOnlineUsers(excludeId) });
 	}
 
 	onStart() {
@@ -55,12 +63,11 @@ export class Chat extends Server<Env> {
 			} satisfies Message),
 		);
 		// Send current user list to the new connection
-		const users = [...this.connectionUsers.values()];
+		const users = this.getOnlineUsers();
 		connection.send(JSON.stringify({ type: "users", users } satisfies Message));
 	}
 
 	onClose(connection: Connection) {
-		this.connectionUsers.delete(connection.id);
 		this.connectionMessageTimes.delete(connection.id);
 
 		// If the room is now empty, wipe all messages so the next session starts fresh
@@ -69,7 +76,7 @@ export class Chat extends Server<Env> {
 			this.ctx.storage.sql.exec(`DELETE FROM messages`);
 		}
 
-		this.broadcastUsers();
+		this.broadcastUsers(connection.id);
 	}
 
 	saveMessage(message: ChatMessage) {
@@ -105,7 +112,7 @@ export class Chat extends Server<Env> {
 
 		// Join: register username and broadcast updated user list (not rate-limited)
 		if (parsed.type === "join") {
-			this.connectionUsers.set(id, parsed.user);
+			connection.setState({ user: parsed.user });
 			this.broadcastUsers();
 			return;
 		}

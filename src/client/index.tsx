@@ -234,8 +234,8 @@ function Chat({
 							: m,
 					),
 				);
-			} else {
-				setMessages(message.messages);
+			} else if (message.type === "all") {
+				setMessages(message.messages ?? []);
 			}
 		},
 	});
