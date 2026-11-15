@@ -39,4 +39,14 @@ export type Message =
 			type: "typing";
 			user: string;
 			isTyping: boolean;
+	  }
+	| {
+			// Client → server on connect to register username
+			type: "join";
+			user: string;
+	  }
+	| {
+			// Server → all clients: current user list for this room
+			type: "users";
+			users: string[];
 	  };

@@ -43,9 +43,11 @@ function ThemeSelector({
 function Layout({
 	children,
 	room,
+	users,
 }: {
 	children: React.ReactNode;
 	room?: string;
+	users?: string[];
 }) {
 	const [theme, setTheme] = useState<Theme>(getStoredTheme);
 
@@ -62,6 +64,18 @@ function Layout({
 						<b>{room ?? "Chat"}</b>
 					</h4>
 					<ThemeSelector theme={theme} onChange={setTheme} />
+					{users && users.length > 0 && (
+						<div className="user-list">
+							<p className="user-list-heading">
+								👥 {users.length} online
+							</p>
+							<ul>
+								{users.map((u) => (
+									<li key={u}>{u}</li>
+								))}
+							</ul>
+						</div>
+					)}
 				</aside>
 				<main className="two-thirds column main">{children}</main>
 			</div>
@@ -69,7 +83,7 @@ function Layout({
 	);
 }
 
-function App() {
+function App({ onUsersChange }: { onUsersChange: (users: string[]) => void }) {
 	const [username, setUsername] = useState<string | null>(null);
 	const { room } = useParams();
 
@@ -107,15 +121,17 @@ function App() {
 		);
 	}
 
-	return <Chat room={room} username={username} />;
+	return <Chat room={room} username={username} onUsersChange={onUsersChange} />;
 }
 
 function Chat({
 	room,
 	username,
+	onUsersChange,
 }: {
 	room: string | undefined;
 	username: string;
+	onUsersChange: (users: string[]) => void;
 }) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const messagesRef = useRef<HTMLDivElement>(null);
@@ -159,10 +175,18 @@ function Chat({
 	const socket = usePartySocket({
 		party: "chat",
 		room,
+		onOpen: (evt) => {
+			// Register our username with the server
+			(evt.target as WebSocket).send(
+				JSON.stringify({ type: "join", user: username } satisfies Message),
+			);
+		},
 		onMessage: (evt) => {
 			const message = JSON.parse(evt.data as string) as Message;
 			if (message.type === "slow_mode") {
 				setSlowModeUntil(Date.now() + message.retryAfterMs);
+			} else if (message.type === "users") {
+				onUsersChange(message.users);
 			} else if (message.type === "system") {
 				setMessages((msgs) => [
 					...msgs,
@@ -281,6 +305,7 @@ function Chat({
 function RoomLayout() {
 	const { room } = useParams();
 	const upperRoom = room?.toUpperCase();
+	const [users, setUsers] = useState<string[]>([]);
 
 	// Normalise room name to uppercase — /london and /LONDON are the same room
 	if (room !== upperRoom) {
@@ -288,8 +313,8 @@ function RoomLayout() {
 	}
 
 	return (
-		<Layout room={upperRoom}>
-			<App />
+		<Layout room={upperRoom} users={users}>
+			<App onUsersChange={setUsers} />
 		</Layout>
 	);
 }

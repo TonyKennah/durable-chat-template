@@ -12,6 +12,9 @@ export class Chat extends Server<Env> {
 
 	messages = [] as ChatMessage[];
 
+	// connection ID → username for the user list
+	private connectionUsers = new Map<string, string>();
+
 	// Rate limiting: track recent message timestamps per connection
 	// If a connection sends more than RATE_LIMIT_MAX messages within RATE_LIMIT_WINDOW_MS,
 	// they are put on slow mode for SLOW_MODE_DURATION_MS.
@@ -22,6 +25,11 @@ export class Chat extends Server<Env> {
 
 	broadcastMessage(message: Message, exclude?: string[]) {
 		this.broadcast(JSON.stringify(message), exclude);
+	}
+
+	broadcastUsers() {
+		const users = [...this.connectionUsers.values()];
+		this.broadcastMessage({ type: "users", users });
 	}
 
 	onStart() {
@@ -46,6 +54,15 @@ export class Chat extends Server<Env> {
 				messages: this.messages,
 			} satisfies Message),
 		);
+		// Send current user list to the new connection
+		const users = [...this.connectionUsers.values()];
+		connection.send(JSON.stringify({ type: "users", users } satisfies Message));
+	}
+
+	onClose(connection: Connection) {
+		this.connectionUsers.delete(connection.id);
+		this.connectionMessageTimes.delete(connection.id);
+		this.broadcastUsers();
 	}
 
 	saveMessage(message: ChatMessage) {
@@ -77,6 +94,20 @@ export class Chat extends Server<Env> {
 	onMessage(connection: Connection, message: WSMessage) {
 		const now = Date.now();
 		const id = connection.id;
+		const parsed = JSON.parse(message as string) as Message;
+
+		// Join: register username and broadcast updated user list (not rate-limited)
+		if (parsed.type === "join") {
+			this.connectionUsers.set(id, parsed.user);
+			this.broadcastUsers();
+			return;
+		}
+
+		// Typing events: relay to others, skip rate limiting and storage
+		if (parsed.type === "typing") {
+			this.broadcast(message, [id]);
+			return;
+		}
 
 		// Rate limiting check
 		const times = this.connectionMessageTimes.get(id) ?? [];
@@ -92,7 +123,6 @@ export class Chat extends Server<Env> {
 				} satisfies Message),
 			);
 			// Also let the room know
-			const parsed = JSON.parse(message as string) as Message;
 			const user = (parsed as { user?: string }).user ?? "Someone";
 			const secs = Chat.SLOW_MODE_DURATION_MS / 1000;
 			this.broadcast(
@@ -108,7 +138,6 @@ export class Chat extends Server<Env> {
 		this.broadcast(message);
 
 		// let's update our local messages store
-		const parsed = JSON.parse(message as string) as Message;
 		if (parsed.type === "add" || parsed.type === "update") {
 			this.saveMessage(parsed);
 		}
